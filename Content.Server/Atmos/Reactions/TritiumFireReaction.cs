@@ -16,36 +16,25 @@ namespace Content.Server.Atmos.Reactions
             var temperature = mixture.Temperature;
             var location = holder as TileAtmosphere;
             mixture.ReactionResults[(byte)GasReaction.Fire] = 0f;
-            var burnedFuel = 0f;
             var initialTrit = mixture.GetMoles(Gas.Tritium);
+            var initialOxy = mixture.GetMoles(Gas.Oxygen);
 
-            if (mixture.GetMoles(Gas.Oxygen) < initialTrit ||
-                Atmospherics.MinimumTritiumOxyburnEnergy > (temperature * oldHeatCapacity * heatScale))
-            {
-                burnedFuel = mixture.GetMoles(Gas.Oxygen) / Atmospherics.TritiumBurnOxyFactor;
-                if (burnedFuel > initialTrit)
-                    burnedFuel = initialTrit;
+            var oxyRatio = initialOxy / (initialTrit * Atmospherics.HydrogenFuelOxyRatio);
+            // Reaction rate asymptotically approaches its maximum as oxygen concentration increases, reaching half its maximum at the ideal ratio.
+            var reactionRate = Math.Min(initialTrit, initialOxy / Atmospherics.HydrogenFuelOxyRatio) * (1f - 1f / (1f + oxyRatio)) / Atmospherics.HydrogenBurnRate;
 
-                mixture.AdjustMoles(Gas.Tritium, -burnedFuel);
-            }
-            else
+            if (reactionRate > 0)
             {
-                burnedFuel = initialTrit;
-                mixture.SetMoles(Gas.Tritium, mixture.GetMoles(Gas.Tritium ) * (1 - 1 / Atmospherics.TritiumBurnTritFactor));
-                mixture.AdjustMoles(Gas.Oxygen, -mixture.GetMoles(Gas.Tritium));
-                energyReleased += (Atmospherics.FireHydrogenEnergyReleased * burnedFuel * (Atmospherics.TritiumBurnTritFactor - 1));
-            }
-
-            if (burnedFuel > 0)
-            {
-                energyReleased += (Atmospherics.FireHydrogenEnergyReleased * burnedFuel);
+                energyReleased += Atmospherics.FireHydrogenEnergyReleased * reactionRate;
 
                 // TODO ATMOS Radiation pulse here!
 
                 // Conservation of mass is important.
-                mixture.AdjustMoles(Gas.WaterVapor, burnedFuel);
+                mixture.AdjustMoles(Gas.WaterVapor, reactionRate);
+                mixture.AdjustMoles(Gas.Tritium, -reactionRate);
+                mixture.AdjustMoles(Gas.Oxygen, -reactionRate / Atmospherics.HydrogenFuelOxyRatio);
 
-                mixture.ReactionResults[(byte)GasReaction.Fire] += burnedFuel;
+                mixture.ReactionResults[(byte)GasReaction.Fire] += reactionRate;
             }
 
             energyReleased /= heatScale; // adjust energy to make sure speedup doesn't cause mega temperature rise

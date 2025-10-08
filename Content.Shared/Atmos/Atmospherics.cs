@@ -238,8 +238,16 @@ namespace Content.Shared.Atmos
         /// </summary>
         public const float MinimumTritiumOxyburnEnergy = 143000f;
 
-        public const float TritiumBurnOxyFactor = 100f;
-        public const float TritiumBurnTritFactor = 10f;
+        /// <summary>
+        ///     At most 100 / X percent of the hydrogen/tritium can be consumed in a single reaction tick.
+        ///     In practice the ideal fuel/oxy ratio will burn at half this rate, and the maximum rate can be approached but never reached.
+        ///     When burning at higher oxygen concentrations the reduction in fuel relative to total heat capacity counteracts the faster burn rate.
+        /// </summary>
+        public const float HydrogenBurnRate = 5f;
+        /// <summary>
+        ///     The number of mols of hydrogen per mol of oxygen required for
+        /// </summary>
+        public const float HydrogenFuelOxyRatio = 2f;
 
         public const float FrezonCoolLowerTemperature = 23.15f;
 
